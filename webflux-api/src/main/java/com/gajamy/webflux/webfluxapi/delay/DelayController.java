@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class DelayController {
     private final DelayService delayService;
+    private final BlockingDelayService blockingDelayService;
 
     @GetMapping("/delay")
     public Mono<DelayResponse> delay(
@@ -18,4 +19,6 @@ public class DelayController {
     ) {
         return delayService.delay(ms);
     }
+
+    @GetMapping("/block")
 }

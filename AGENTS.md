@@ -74,3 +74,7 @@ Pull requests should include a short description, the reason for the change, tes
 ## Security & Configuration Tips
 
 Do not commit secrets, credentials, or local machine paths. Put local overrides in ignored files or environment variables. Keep `application.yaml` safe for shared development defaults.
+
+## Study Continuation Notes
+
+Before continuing the MVC/WebFlux study flow, read `docs/study-checkpoint.md`. It records the implemented endpoints, k6 results, current conclusions, and the next planned experiment.
