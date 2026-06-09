@@ -1,8 +1,8 @@
-package com.gajamy.webflux.webfluxapi.delay;
+package com.gajamy.webflux.delay;
 
 public record DelayResponse(
         long requestedDelayMs,
         long actualDelayMs,
         String threadName
-) {
+        ) {
 }

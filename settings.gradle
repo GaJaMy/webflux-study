@@ -1,0 +1,3 @@
+rootProject.name = 'webflux'
+include 'mvc-api'
+include 'webflux-api'
