@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 public class DelayController {
     private final DelayService delayService;
     private final BlockingDelayService blockingDelayService;
+    private final BoundedElasticDelayService boundedElasticDelayService;
 
     @GetMapping("/delay")
     public Mono<DelayResponse> delay(
@@ -20,5 +21,19 @@ public class DelayController {
         return delayService.delay(ms);
     }
 
-    @GetMapping("/block")
+    @GetMapping("/blocking-delay")
+    public DelayResponse blockingDelay(
+            @RequestParam(defaultValue = "1000")
+            Long ms
+    ) {
+        return blockingDelayService.delay(ms);
+    }
+
+    @GetMapping("/bounded-elastic-delay")
+    public Mono<DelayResponse> boundedElasticDelay(
+            @RequestParam(defaultValue = "1000")
+            Long ms
+    ) {
+        return boundedElasticDelayService.delay(ms);
+    }
 }

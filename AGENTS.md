@@ -8,6 +8,8 @@ This repository is a Gradle multi-module Spring Boot study project comparing MVC
 - `mvc-api/src/test/java/com/gajamy/webflux/`: MVC tests mirroring the main package structure.
 - `webflux-api/src/main/java/com/gajamy/webflux/webfluxapi/`: minimal WebFlux application skeleton. Add WebFlux features here step by step.
 - `webflux-api/src/test/java/com/gajamy/webflux/webfluxapi/`: WebFlux tests.
+- `mock-api/src/main/java/com/gajamy/mockapi/`: separate mock external API server used for external-call experiments.
+- `mock-api/src/test/java/com/gajamy/mockapi/`: mock API tests.
 - `load-test/`: k6 scripts used to compare API behavior under load.
 - `docs/`: study notes and tool usage guides.
 - `build.gradle` and `settings.gradle`: Gradle build and project metadata.
@@ -28,6 +30,12 @@ Starts the MVC application locally.
 ```
 
 Starts the WebFlux application locally on port `8081`.
+
+```bash
+./gradlew :mock-api:bootRun
+```
+
+Starts the mock external API locally on port `8090`.
 
 ```bash
 ./gradlew test
