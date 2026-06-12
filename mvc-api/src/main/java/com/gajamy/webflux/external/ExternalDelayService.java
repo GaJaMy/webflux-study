@@ -19,4 +19,14 @@ public class ExternalDelayService {
                 ms
         );
     }
+
+    public DelayResponse callWebFluxExternalDelay(long ms) {
+        String url = "http://localhost:8091/mock-external-delay?ms={ms}";
+
+        return restTemplate.getForObject(
+                url,
+                DelayResponse.class,
+                ms
+        );
+    }
 }

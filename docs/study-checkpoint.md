@@ -13,6 +13,7 @@ webflux
 ├── mvc-api
 ├── webflux-api
 ├── mock-api
+├── mock-webflux-api
 ├── load-test
 └── docs
 ```
@@ -20,6 +21,7 @@ webflux
 - `mvc-api`: Spring MVC + `Thread.sleep(ms)` 기반 blocking delay API
 - `webflux-api`: Spring WebFlux + `Mono.delay(Duration.ofMillis(ms))` 기반 non-blocking delay API
 - `mock-api`: 외부 API 호출 비교용 별도 지연 API 서버, port `8090`
+- `mock-webflux-api`: WebFlux 기반 외부 API 호출 비교용 별도 지연 API 서버, port `8091`
 - `load-test`: k6 부하 테스트 스크립트
 
 ## 구현 완료
@@ -80,6 +82,12 @@ Mock API 실행:
 
 ```bash
 ./gradlew :mock-api:bootRun
+```
+
+Mock WebFlux API 실행:
+
+```bash
+./gradlew :mock-webflux-api:bootRun
 ```
 
 ## k6 스크립트
@@ -485,24 +493,151 @@ mock-api를 WebFlux + Mono.delay 기반 non-blocking mock 서버로 바꾼다.
 다음 공부를 시작할 때는 여기서 이어간다.
 
 ```text
-1. mock-api를 현재 Spring MVC + Thread.sleep에서 WebFlux + Mono.delay 구조로 바꾼다.
-2. mock-api endpoint는 그대로 유지한다: GET /mock-external-delay?ms=1000
-3. mock-api port도 그대로 유지한다: 8090
-4. MVC + RestTemplate 결과를 다시 측정한다.
-5. WebFlux + WebClient 결과를 다시 측정한다.
-6. mock-api 병목이 사라졌을 때 호출자 쪽 MVC/WebFlux 차이가 어떻게 달라지는지 비교한다.
+1. mock-webflux-api 모듈은 생성 완료됨.
+2. mock-webflux-api endpoint: GET /mock-external-delay?ms=1000
+3. mock-webflux-api port: 8091
+4. mvc-api와 webflux-api가 mock-webflux-api(8091)를 호출하는 실험용 endpoint 또는 설정을 추가한다.
+5. MVC + RestTemplate -> mock-webflux-api 결과를 측정한다.
+6. WebFlux + WebClient -> mock-webflux-api 결과를 측정한다.
+7. mock 외부 서버 병목이 줄었을 때 호출자 쪽 MVC/WebFlux 차이가 어떻게 달라지는지 비교한다.
 ```
 
 실행 순서:
 
 ```bash
-./gradlew :mock-api:bootRun
+./gradlew :mock-webflux-api:bootRun
 ./gradlew :mvc-api:bootRun
 k6 run load-test/mvc-external-delay-load.js
 ```
 
 ```bash
-./gradlew :mock-api:bootRun
+./gradlew :mock-webflux-api:bootRun
 ./gradlew :webflux-api:bootRun
 k6 run load-test/webflux-external-delay-load.js
+```
+
+## 외부 API 호출 비교: WebFlux Mock Server
+
+외부 API 서버 병목을 줄이기 위해 `mock-webflux-api` 모듈을 추가했다.
+
+구조:
+
+```text
+mock-webflux-api: 8091
+mvc-api: 8080
+webflux-api: 8081
+```
+
+Mock API:
+
+```text
+GET http://localhost:8091/mock-external-delay?ms=1000
+```
+
+구현:
+
+```text
+mock-webflux-api
+→ Spring WebFlux
+→ Mono.delay(Duration.ofMillis(ms))
+→ non-blocking delay
+```
+
+### MVC + RestTemplate -> mock-webflux-api
+
+조건:
+
+```text
+GET http://localhost:8080/external-delay-webflux-mock?ms=1000
+300 VU
+30s
+Implementation: MVC + RestTemplate -> WebFlux mock server
+```
+
+결과:
+
+```text
+checks_succeeded: 100.00%
+checks_failed: 0.00%
+http_req_duration avg: 1.51s
+http_req_duration p95: 2.00s
+http_req_duration max: 2.37s
+http_req_failed: 0.00%
+http_reqs rate: 193.60/s
+total requests: 6100
+threshold p95<1500ms: failed
+```
+
+해석:
+
+```text
+외부 mock 서버는 WebFlux + Mono.delay라 병목이 줄었다.
+하지만 호출자인 mvc-api는 RestTemplate 응답을 기다리는 동안 worker thread를 blocking한다.
+300 VU에서는 mvc-api worker thread 한계 때문에 일부 요청이 큐에서 대기했고 p95가 약 2초가 되었다.
+```
+
+### WebFlux + WebClient -> mock-webflux-api
+
+조건:
+
+```text
+GET http://localhost:8081/external-delay-webflux-mock?ms=1000
+300 VU
+30s
+Implementation: WebFlux + WebClient -> WebFlux mock server
+```
+
+결과:
+
+```text
+checks_succeeded: 100.00%
+checks_failed: 0.00%
+http_req_duration avg: 1.01s
+http_req_duration p95: 1.05s
+http_req_duration max: 1.29s
+http_req_failed: 0.00%
+http_reqs rate: 295.02/s
+total requests: 9000
+threshold p95<1500ms: passed
+```
+
+해석:
+
+```text
+webflux-api는 WebClient로 외부 API를 호출하므로 외부 응답을 기다리는 동안 event-loop thread를 blocking하지 않는다.
+호출 대상인 mock-webflux-api도 non-blocking delay를 사용하므로 외부 서버 병목이 줄었다.
+그 결과 300 VU, 1초 delay 조건에서 RPS가 약 295/s로 이론치에 가까웠고 p95도 1.05초로 유지되었다.
+```
+
+결론:
+
+```text
+외부 API 서버가 충분히 버틸 수 있는 상황에서는 호출자 쪽 blocking/non-blocking 차이가 명확하게 드러난다.
+MVC + RestTemplate은 외부 응답 대기 동안 worker thread를 점유한다.
+WebFlux + WebClient는 외부 응답 대기 동안 event-loop thread를 점유하지 않는다.
+외부 API 서버가 blocking 구조로 병목이면 WebFlux caller의 장점이 k6 결과에서 가려질 수 있다.
+전체 처리량은 호출자뿐 아니라 downstream 서버, DB, 네트워크 병목에도 영향을 받는다.
+```
+
+비교 요약:
+
+```text
+MVC + RestTemplate -> MVC mock
+- RPS: 193.64/s
+- p95: 2.00s
+
+WebFlux + WebClient -> MVC mock
+- RPS: 193.80/s
+- p95: 1.94s
+- mock-api 병목 때문에 호출자 차이가 거의 가려짐
+
+MVC + RestTemplate -> WebFlux mock
+- RPS: 193.60/s
+- p95: 2.00s
+- 호출자 MVC worker thread blocking이 병목
+
+WebFlux + WebClient -> WebFlux mock
+- RPS: 295.02/s
+- p95: 1.05s
+- 호출자와 mock 서버 모두 non-blocking이라 300 VU 이론치에 가까움
 ```

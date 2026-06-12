@@ -17,4 +17,11 @@ public class ExternalDelayService {
                 .retrieve()
                 .bodyToMono(DelayResponse.class);
     }
+
+    public Mono<DelayResponse> callWebFluxExternalDelay(long ms) {
+        return webClient.get()
+                .uri("http://localhost:8091/mock-external-delay?ms={ms}", ms)
+                .retrieve()
+                .bodyToMono(DelayResponse.class);
+    }
 }

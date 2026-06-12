@@ -33,6 +33,27 @@ public class ExternalDelayControllerTest {
                 ));
 
         mockMvc.perform(get("/external-delay")
+                        .param("ms", String.valueOf(requestedMs)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestedDelayMs").value(100))
+                .andExpect(jsonPath("$.actualDelayMs").value(101))
+                .andExpect(jsonPath("$.threadName").value("test-thread"));
+    }
+
+    @Test
+    void externalDelayWebflux() throws Exception {
+        long requestedMs = 100L;
+
+        when(externalDelayService.callWebFluxExternalDelay(requestedMs))
+                .thenReturn(
+                        new DelayResponse(
+                                requestedMs,
+                                101L,
+                                "test-thread"
+                        )
+                );
+
+        mockMvc.perform(get("/external-delay-webflux")
                     .param("ms", String.valueOf(requestedMs)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.requestedDelayMs").value(100))

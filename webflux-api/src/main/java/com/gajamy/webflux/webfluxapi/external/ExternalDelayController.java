@@ -19,4 +19,12 @@ public class ExternalDelayController {
     ) {
         return externalDelayService.callExternalDelay(ms);
     }
+
+    @GetMapping("/external-delay-webflux")
+    public Mono<DelayResponse> externalDelayWebflux(
+            @RequestParam(defaultValue = "1000")
+            Long ms
+    ) {
+        return externalDelayService.callWebFluxExternalDelay(ms);
+    }
 }

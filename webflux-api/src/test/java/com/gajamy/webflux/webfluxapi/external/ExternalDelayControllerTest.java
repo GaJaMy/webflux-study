@@ -8,6 +8,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 @WebFluxTest(ExternalDelayController.class)
@@ -34,6 +35,31 @@ public class ExternalDelayControllerTest {
 
         webTestClient.get()
                 .uri("/external-delay?ms={ms}", requestedMs)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.requestedDelayMs").isEqualTo(100)
+                .jsonPath("$.actualDelayMs").isEqualTo(101)
+                .jsonPath("$.threadName").isEqualTo("test-thread");
+    }
+
+
+    @Test
+    void externalDelayWebFluxTest() {
+        long requestedMs = 100L;
+
+        when(externalDelayService.callWebFluxExternalDelay(requestedMs))
+                .thenReturn(Mono.just(
+                                new DelayResponse(
+                                        requestedMs,
+                                        101L,
+                                        "test-thread"
+                                )
+                        )
+                );
+
+        webTestClient.get()
+                .uri("/external-delay-webflux?ms={ms}", requestedMs)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
